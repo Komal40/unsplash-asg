@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import './SearchComponent.css'
 import axios from 'axios'
 import * as fabric from 'fabric'
@@ -15,6 +15,8 @@ const { selectedObjects, editor, onReady } = useFabricJSEditor();
     const [result, setResult]=useState([])
     const [canvas, setCanvas]=useState(null)
     const [caption, setCaption] = useState('');
+    const canvaRef=useRef(null)
+
     const accessKey=process.env.REACT_APP_ACCESS_KEY
 
 
@@ -79,11 +81,19 @@ const { selectedObjects, editor, onReady } = useFabricJSEditor();
     
         console.log("Canvas initialized:", canvasInstance);
         // Load the image onto the canvas
-         fabric.Image.fromURL(`${imageUrl}`, (img) => {
+         fabric.Image.fromURL(imageUrl, (img, isError) => {
             if (!img) {
                 console.error("Image load failed.");
                
             }
+            if (img.getElement() === undefined) {
+                console.log('Failed to load image!');
+                // return;
+              }
+            if (isError) {
+                console.log('Something Wrong with loading image');
+                // return;
+              }
             console.log("Image loaded successfully:", img);
             img.scaleToWidth(600);
             img.set({ left: 0, top: 0 });
@@ -108,7 +118,224 @@ console.log("Image URL:", imageUrl);
     };
     
 
+      // Add text to the canvas
+//   const addText = () => {
+//     if (!canvas) return;
 
+//     const text = new fabric.Textbox("Your Caption Here", {
+//       left: 100,
+//       top: 100,
+//       fontSize: 20,
+//       fill: "#000",
+//     });
+
+//     canvas.add(text);
+//   };
+
+//   // Add shapes to the canvas
+//   const addShape = (shape) => {
+//     if (!canvas) return;
+
+//     let shapeObject;
+//     if (shape === "rectangle") {
+//       shapeObject = new fabric.Rect({
+//         left: 150,
+//         top: 150,
+//         fill: "blue",
+//         width: 100,
+//         height: 100,
+//       });
+//     } else if (shape === "circle") {
+//       shapeObject = new fabric.Circle({
+//         left: 200,
+//         top: 200,
+//         fill: "red",
+//         radius: 50,
+//       });
+//     } else if (shape === "triangle") {
+//       shapeObject = new fabric.Triangle({
+//         left: 250,
+//         top: 250,
+//         fill: "green",
+//         width: 100,
+//         height: 100,
+//       });
+//     }
+
+//     canvas.add(shapeObject);
+//   };
+
+//   // Download the canvas as an image
+//   const downloadImage = () => {
+//     if (!canvas) return;
+
+//     const dataURL = canvas.toDataURL({
+//       format: "png",
+//     });
+
+//     const link = document.createElement("a");
+//     link.href = dataURL;
+//     link.download = "modified-image.png";
+//     link.click();
+//   };
+
+
+// Initialize the canvas with the selected image
+
+ // Function to initialize the canvas and load the image
+ const initializeCanvass = (imageUrl) => {
+    // Dispose of existing canvas instance if it exists
+    if (canvas) {
+        canvas.dispose();
+    }
+
+    // Check if the canvas reference is available
+    if (canvaRef.current) {
+        console.log("imageurl",imageUrl)
+        // Create a new Canvas instance
+        const canvasInstance = new fabric.Canvas(canvaRef.current, {
+            width: 600,
+            height: 400,
+        });
+        canvasInstance.backgroundColor = 'red';
+        canvasInstance.renderAll();
+
+        console.log("New canvas instance", canvasInstance);
+
+        // Load the image onto the canvas
+        console.log('Loading image...');
+        
+            fabric.Image.fromURL(imageUrl, (img) => {
+                if (!img) {
+                    console.log('No image loaded');
+                    return; // Exit if no image is loaded
+                }
+    
+                img.scaleToWidth(600); // Scale image to fit canvas width
+                img.scaleToHeight(400); 
+                canvasInstance.add(img); // Add image to the canvas
+                // canvasInstance.sendToBack(img); // Send image to back layer
+                canvasInstance.centerObject(img); // Center the image on the canvas
+                canvasInstance.setActiveObject(img); // Set the loaded image as active
+    
+                console.log('Image loaded...');
+                // Ensure the canvas re-renders
+                canvasInstance.renderAll();
+            }, {
+                crossOrigin: 'anonymous', // Handle cross-origin images
+            });
+        
+        
+
+        setCanvas(canvasInstance); // Store the new canvas instance in state
+
+        console.log('Canvas initialized',canvasInstance);
+        
+        return () => { 
+            if (canvasInstance) {
+                canvasInstance.dispose(); // Cleanup on unmount or when initializing again
+            }
+        };
+    }
+};
+
+
+  // Handle adding captions
+  const addCaption = () => {
+    if (canvas) {
+      const text = new Textbox(caption, {
+        left: 50,
+        top: 50,
+        fontSize: 30,
+        fill: 'white',
+      });
+      canvas.add(text);
+      setCaption('');
+    }
+  };
+
+  // Handle adding shapes (Circle, Rectangle, etc.)
+  const addShape = (shape) => {
+    let newShape;
+    switch (shape) {
+      case 'circle':
+        newShape = new Circle({
+          left: 100,
+          top: 100,
+          radius: 50,
+          fill: 'red',
+        });
+        break;
+      case 'rectangle':
+        newShape = new Rect({
+          left: 150,
+          top: 150,
+          width: 100,
+          height: 50,
+          fill: 'blue',
+        });
+        break;
+      case 'triangle':
+        newShape = new Triangle({
+          left: 200,
+          top: 200,
+          width: 100,
+          height: 100,
+          fill: 'green',
+        });
+        break;
+      default:
+        return;
+    }
+    canvas.add(newShape);
+  };
+
+  // Handle downloading the modified image
+  const downloadImage = () => {
+    if (canvas) {
+      const dataUrl = canvas.toDataURL({
+        format: 'png',
+        quality: 1.0,
+      });
+      const link = document.createElement('a');
+      link.href = dataUrl;
+      link.download = 'modified_image.png';
+      link.click();
+    }
+  };
+
+
+
+  useEffect(()=>{
+    console.log("object",canvaRef.current)
+    if(canvaRef.current){
+        const initCanva=new Canvas(canvaRef.current,{
+            width:500,
+            height:500
+        })
+        initCanva.backgroundColor='green'
+        initCanva.renderAll()
+
+        setCanvas(initCanva)
+        console.log('useeffect', initCanva)
+        return()=>{initCanva.dispose()}
+
+    }
+  },[])
+  
+    const addRectangle=()=>{
+          if(canvas){
+              const rec=new fabric.Rect({
+                  top:100,
+                  left:50,
+                  width:100,
+                  height:100,
+                  fill:'blue'
+              })
+              canvas.add(rec)
+          }
+      }
+  
   return (
     <div>
       <div className='main_container'>
@@ -117,11 +344,7 @@ console.log("Image URL:", imageUrl);
         value={query}
         onChange={(e)=>setQuery(e.target.value)}
         />
-        {/* <input 
-            type="text" 
-            value={imgUrl} 
-            onChange={ e => setImgURL(e.target.value)} 
-          /> */}
+       
         <button onClick={handleSearchImage}>Search</button>
 
       </div>
@@ -132,7 +355,9 @@ console.log("Image URL:", imageUrl);
         {result.map((image) => (
           <div key={image.id} className="image_container">
             <img src={image.urls.regular} alt={image.alt_description} />
-            <button onClick={() => initializeCanvas(image.urls.regular)}>
+            <button 
+            onClick={() => initializeCanvass(image.urls.regular)}
+            >
               Add Captions
             </button>
           </div>
@@ -140,8 +365,29 @@ console.log("Image URL:", imageUrl);
       </div>
 
 
-     
-     
+      {/* Canvas Area */}
+      <div className="canvas_area" id="canvas-container">
+        <canvas id="canvas" ref={canvaRef}></canvas>
+        <div className="canvas_controls">
+          <button 
+          onClick={addCaption}
+          >Add Caption</button>
+          <button 
+          onClick={() => addShape("rectangle")}
+        // onClick={addRectangle}
+          >Add Rectangle</button>
+          <button 
+          onClick={() => addShape("circle")}
+          >Add Circle</button>
+          <button 
+          onClick={() => addShape("triangle")}
+          >Add Triangle</button>
+          <button 
+          onClick={downloadImage}
+          >Download</button>
+        </div>
+        
+      </div>
     </div>
   )
 }
